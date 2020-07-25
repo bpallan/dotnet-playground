@@ -31,7 +31,7 @@ namespace Tpl.Examples.Tests.Services
             {
                 yield return new ImportCustomer()
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = (i + 1).ToString(),
                     FirstName = Guid.NewGuid().ToString().Replace("-", ""),
                     LastName = Guid.NewGuid().ToString().Replace("-", ""),
                     CellPhone = RandomPhone(),
