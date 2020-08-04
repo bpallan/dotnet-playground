@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -17,39 +18,51 @@ namespace Tpl.Examples.Tests
     [TestClass]
     public class BasicExamples
     {
+        private static readonly ExecutionDataflowBlockOptions ExecutionOptions = new ExecutionDataflowBlockOptions()
+        {
+            MaxDegreeOfParallelism = 10
+        };
+
+        // allows complete to propagate across all blocks instead of having to call/await it on every block in the chain
+        private static readonly DataflowLinkOptions LinkOptions = new DataflowLinkOptions()
+        {
+            PropagateCompletion = true 
+        };
+
         /////////////////////////
         /// BUFFERING BLOCKS ///
         ///////////////////////
         [TestMethod]
         public async Task BufferBlock_Example1()
         {
-            var bufferBlock = new BufferBlock<ImportCustomer>(new DataflowBlockOptions());
-            var bulkService = new BulkCustomerDataService(10);
+            _performActionCount = 0;
+            var bufferBlock = new BufferBlock<ImportCustomer>(new DataflowBlockOptions()); //todo: explore bounded capacity, setting it to lower than size of input causes input to not be processed
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1), ExecutionOptions);
+            bufferBlock.LinkTo(actionBlock, LinkOptions);
+
+            var bulkService = new BulkCustomerDataService(100);
 
             await foreach (var customer in bulkService.GetCustomersFromImport())
             {
                 bufferBlock.Post(customer);
             }
 
-            while (bufferBlock.TryReceive(out var customerReceived))
-            {
-                Console.Out.WriteLine(customerReceived.Id);
-            }
-
-            // will work without this but should call when done
             bufferBlock.Complete();
+            await actionBlock.Completion;
+
+            Assert.AreEqual(100, _performActionCount, $"Action count is {_performActionCount}");
         }
 
         [TestMethod]
         public async Task BroadcastBlock_Example1()
         {
-            var broadcastBlock = new BroadcastBlock<ImportCustomer>(null);
-            var actionBlock1 = new ActionBlock<ImportCustomer>(PerformAction1);
-            var actionBlock2 = new ActionBlock<ImportCustomer>(PerformAction2);
+            var broadcastBlock = new BroadcastBlock<ImportCustomer>(null, new DataflowBlockOptions());
+            var actionBlock1 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 50));
+            var actionBlock2 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 2, 100));
             broadcastBlock.LinkTo(actionBlock1);
             broadcastBlock.LinkTo(actionBlock2);
 
-            var bulkService = new BulkCustomerDataService(10);
+            var bulkService = new BulkCustomerDataService(100);
 
             await foreach (var customer in bulkService.GetCustomersFromImport())
             {
@@ -64,16 +77,17 @@ namespace Tpl.Examples.Tests
             Task.WaitAll(actionBlock1.Completion, actionBlock2.Completion);
         }
 
-        private async Task PerformAction2(ImportCustomer arg)
-        {
-            await Task.Delay(50);
-            await Console.Out.WriteLineAsync($"Action 2: {arg.Id}");
-        }
+        private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private static int _performActionCount = 0;
 
-        private async Task PerformAction1(ImportCustomer arg)
+        private async Task PerformAction<T>(T input, int actionId, int delayMs)
         {
-            await Task.Delay(100);
-            await Console.Out.WriteLineAsync($"Action 1: {arg.Id}");
+            await _semaphore.WaitAsync();
+            _performActionCount++;
+            _semaphore.Release();
+
+            await Task.Delay(delayMs);
+            Console.WriteLine($"Action {actionId}: {JsonConvert.SerializeObject(input)}");
         }
 
         /////////////////////////
@@ -83,7 +97,7 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task ActionBlock_Example1()
         {
-            var actionBlock = new ActionBlock<ImportCustomer>(PerformAction1, new ExecutionDataflowBlockOptions()
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1), new ExecutionDataflowBlockOptions()
             {
                 // will process in order if not set
                 MaxDegreeOfParallelism = 10
