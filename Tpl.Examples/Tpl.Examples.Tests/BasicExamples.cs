@@ -56,11 +56,12 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task BroadcastBlock_Example1()
         {
+            _performActionCount = 0;
             var broadcastBlock = new BroadcastBlock<ImportCustomer>(null, new DataflowBlockOptions());
             var actionBlock1 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 50));
             var actionBlock2 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 2, 100));
-            broadcastBlock.LinkTo(actionBlock1);
-            broadcastBlock.LinkTo(actionBlock2);
+            broadcastBlock.LinkTo(actionBlock1, LinkOptions);
+            broadcastBlock.LinkTo(actionBlock2, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
@@ -69,12 +70,10 @@ namespace Tpl.Examples.Tests
                 broadcastBlock.Post(customer);
             }
 
-            // required or will never return
-            actionBlock1.Complete();
-            actionBlock2.Complete();
-
-            // required or will exit w/out all records finishing
+            broadcastBlock.Complete();
             Task.WaitAll(actionBlock1.Completion, actionBlock2.Completion);
+
+            Assert.AreEqual(200, _performActionCount, $"Action count is {_performActionCount}");
         }
 
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
@@ -97,11 +96,7 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task ActionBlock_Example1()
         {
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1), new ExecutionDataflowBlockOptions()
-            {
-                // will process in order if not set
-                MaxDegreeOfParallelism = 10
-            });
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1), ExecutionOptions);
 
             var bulkService = new BulkCustomerDataService(10);
 
@@ -120,11 +115,7 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task TransformBlock_Example1()
         {
-            var transformBlock = new TransformBlock<ImportCustomer, Customer>(importCustomer => importCustomer.ToCustomer(), new ExecutionDataflowBlockOptions()
-            {
-                // will process in order if not set
-                MaxDegreeOfParallelism = 10
-            });
+            var transformBlock = new TransformBlock<ImportCustomer, Customer>(importCustomer => importCustomer.ToCustomer(), ExecutionOptions);
 
             var bulkService = new BulkCustomerDataService(10);
 
@@ -154,11 +145,7 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task TransformManyBlock_Example1()
         {
-            var transformManyBlock = new TransformManyBlock<string, ImportCustomer>(JsonConvert.DeserializeObject<List<ImportCustomer>>, 
-                new ExecutionDataflowBlockOptions()
-                {
-                    MaxDegreeOfParallelism = 1
-                });
+            var transformManyBlock = new TransformManyBlock<string, ImportCustomer>(JsonConvert.DeserializeObject<List<ImportCustomer>>, ExecutionOptions);
 
             var bulkService = new BulkCustomerDataService(10);
             var json = JsonConvert.SerializeObject(await bulkService.GetCustomersFromImport().ToListAsync());
