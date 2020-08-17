@@ -53,6 +53,7 @@ namespace Tpl.Examples.Tests
             Assert.AreEqual(100, _performActionCount, $"Action count is {_performActionCount}");
         }
 
+
         [TestMethod]
         public async Task BroadcastBlock_Example1()
         {
@@ -138,6 +139,26 @@ namespace Tpl.Examples.Tests
             await actionBlock.Completion;
 
             Assert.AreEqual(100, _performActionCount, $"Action count is {_performActionCount}");
+        }
+
+        [TestMethod]
+        public async Task BatchBlock_Example1()
+        {
+            var batchBlock = new BatchBlock<ImportCustomer>(10);
+            var actionBlock = new ActionBlock<ImportCustomer[]>(importCustomer => PerformAction(importCustomer, 1, 1));
+            batchBlock.LinkTo(actionBlock, LinkOptions);
+
+            var bulkService = new BulkCustomerDataService(100);
+
+            await foreach (var importCustomer in bulkService.GetCustomersFromImport())
+            {
+                batchBlock.Post(importCustomer);
+            }
+
+            batchBlock.Complete();
+            await actionBlock.Completion;
+
+            Assert.AreEqual(10, _performActionCount, $"Action count is {_performActionCount}");
         }
 
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
