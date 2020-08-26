@@ -244,20 +244,18 @@ namespace Tpl.Examples.Tests
                 await batchBlock.SendAsync(importCustomer);
             }
 
+            // ensure work completes before exiting test
             batchBlock.Complete();
             await actionBlock.Completion;
 
             Assert.AreEqual(10, _performActionCount, $"Action count is {_performActionCount}");
         }
 
-        private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private static int _performActionCount = 0;
 
         private async Task PerformAction<T>(T input, int actionId, int delayMs)
         {
-            await _semaphore.WaitAsync();
-            _performActionCount++;
-            _semaphore.Release();
+            Interlocked.Increment(ref _performActionCount);
 
             await Task.Delay(delayMs);
             Console.WriteLine($"Action {actionId}: {JsonConvert.SerializeObject(input)}");
