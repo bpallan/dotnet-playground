@@ -10,13 +10,18 @@ namespace Tpl.Examples.Tests.Services
     {
         public async Task<Customer> SaveCustomer(Customer customer)
         {
-            await Task.Delay(500);
+            await Task.Delay(100);
             return await Task.FromResult(CreateCustomer(customer));
         }
 
         public async IAsyncEnumerable<Customer> SaveCustomers(List<Customer> customers)
         {
-            await Task.Delay(customers.Count * 50);
+            if (customers.Count > 100)
+            {
+                throw new ArgumentException("Too many customers.", nameof(customers));
+            }
+
+            await Task.Delay(customers.Count);
 
             foreach (var customer in customers)
             {
