@@ -72,8 +72,7 @@ namespace Tpl.Examples.Tests
             var batch = new ConcurrentQueue<Customer>();
             var semaphore = new SemaphoreSlim(1, 1);
 
-            var reducedCount = _customerCount / 10; // too slow to do full count
-            var bulkDataService = new BulkCustomerDataService(reducedCount);
+            var bulkDataService = new BulkCustomerDataService(_customerCount);
             var saveCount = 0;
 
             // this will load the entire list into memory
@@ -86,45 +85,36 @@ namespace Tpl.Examples.Tests
 
                 if (batch.Count >= 100)
                 {
+                    var customersToSave = new List<Customer>();
+
+                    // ensure only 1 thread is sucking records from queue at a time
                     semaphore.Wait();
 
-                    try
+                    if (batch.Count >= 100)
                     {
-                        if (batch.Count >= 100)
+                        for (int i = 0; i < 100; i++)
                         {
-                            SaveCustomerBatch(_customerService, batch, ref saveCount);
+                            if (batch.TryDequeue(out var batchCustomer))
+                            {
+                                customersToSave.Add(batchCustomer);
+                            }
                         }
                     }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
+
+                    semaphore.Release();
+                    var saveResult = _customerService.SaveCustomers(customersToSave).Result;
+                    Interlocked.Add(ref saveCount, saveResult.Count);
                 }
             });
 
             if (batch.Count > 0)
             {
-                SaveCustomerBatch(_customerService, batch, ref saveCount);
+                var saveResult = _customerService.SaveCustomers(batch.ToList()).Result;
+                Interlocked.Add(ref saveCount, saveResult.Count);
             }
 
 
-            Assert.AreEqual(reducedCount, saveCount);
-        }
-
-        private static void SaveCustomerBatch(CustomerService customerService, ConcurrentQueue<Customer> batch, ref int saveCount)
-        {
-            var customersToSave = new List<Customer>();
-
-            for (int i = 0; i < 100; i++)
-            {
-                if (batch.TryDequeue(out var customer))
-                {
-                    customersToSave.Add(customer);
-                }
-            }
-
-            var saveResult = customerService.SaveCustomers(customersToSave).Result;
-            Interlocked.Add(ref saveCount, saveResult.Count);
+            Assert.AreEqual(_customerCount, saveCount);
         }
 
         [TestMethod]
