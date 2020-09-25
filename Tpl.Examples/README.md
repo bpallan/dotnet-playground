@@ -21,9 +21,19 @@ Use a broadcast block when you have multiple consumers that all need to receive 
 ### 3. ActionBlock
 An action block is typically the end of the pipeline. It receives data but does not return anything.  Use ExecutionOptions.MaxDegreeOfParallelism to set the maximum number of threads that can execute concurrently.  You would typically set this to a number higher than the number of cores on the server to allow additional concurrency while waiting on i/o threads to complete.  
 
-[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L161) Used by itself an action block functions very much like Parallel.ForEach loop with the caveat being that it supports async calls.  
+[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L161) : Used by itself an action block functions very much like Parallel.ForEach loop with the caveat being that it supports async calls.  
 
 ### 4. TransformBlock
 Unlike an action block, this supports both input and output.  Typically this block is used to transform the incomming data into a new form to be used by down stream blocks in the pipeline.  Like an ActionBlock, you can set the maximum concurrency via ExecutionOptions.MaxDegreeOfParallelism.
 
-[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L182) Transform from import data type to the input type of the action block.
+[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L182) : Transform from import data type to the input type of the action block.
+
+### 5. TransformManyBlock
+This block accepts a single piece of input data and returns multiple pieces of output data.  This is a similar concept to SelectMany in LINQ.  
+
+[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L209) : Accept a single json string and return a list of deserialized objects for processing.
+
+### 6. BatchBlock
+This block accumulates messages until it reaches the defined theshold and then sends the messages on to the next step in the pipeline.  This is very useful for feeding data to an api or database in batches.  Complete will flush any remaining messages in the batch.  Not calling Complete can be risky in a low volume application as messages might sit int he block for a long tme before enough records are reached.  See TimedBatchBlock example below one possible solution to this issue.
+
+[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L234) : Send messages in batches of 10.  
