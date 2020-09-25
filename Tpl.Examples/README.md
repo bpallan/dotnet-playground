@@ -37,3 +37,9 @@ This block accepts a single piece of input data and returns multiple pieces of o
 This block accumulates messages until it reaches the defined theshold and then sends the messages on to the next step in the pipeline.  This is very useful for feeding data to an api or database in batches.  Complete will flush any remaining messages in the batch.  Not calling Complete can be risky in a low volume application as messages might sit int he block for a long tme before enough records are reached.  See TimedBatchBlock example below one possible solution to this issue.
 
 [Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/BasicExamples.cs#L234) : Send messages in batches of 10.  
+
+### 7. TimedBatchBlock
+This is not an official data block type but something we derived to avoid messages getting stuck during low volume and to properly allow Rebus to handle exceptions that occur duing batch execution.
+1. Batch will be flushed after a (configured) no messages have been received and threshold is not met.  IE. Timeout is reset each time a new message arrives.
+1. Tasks will remain incomplete until batch is completed or timeout.  
+1. Designed to be used as a static or single ton w/in the application and to be populated via many different threads.  A single threaded execution will cause every message to wait the full delay before being sent.
