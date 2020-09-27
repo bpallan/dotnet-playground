@@ -168,7 +168,9 @@ namespace Tpl.Examples.Tests
             };
 
             // transform from import customer to customer
-            var transformBlock = new TransformBlock<ImportCustomer[], Customer[]>(importCustomers => importCustomers.Select(x => x.ToCustomer()).ToArray());
+            var transformBlock = new TransformBlock<ImportCustomer[], Customer[]>(importCustomers 
+                => importCustomers.Select(x => x.ToCustomer()).ToArray(),
+                executionOptions);
 
             // send to api
             var actionBlock = new ActionBlock<Customer[]>(async customers =>
