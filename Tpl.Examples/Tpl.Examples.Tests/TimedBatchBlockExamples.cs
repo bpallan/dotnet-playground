@@ -68,6 +68,9 @@ namespace Tpl.Examples.Tests
             public int BatchSize { get; } = 10;
             public int BatchTimeoutMs { get; } = 2000;
 
+            /// <summary>
+            /// If batch has not finished successfully after this time, then release tasks and return exception
+            /// </summary>
             public int ThreadTimeoutMs => (BatchSize * BatchTimeoutMs) + BatchTimeoutMs;
         }
     }

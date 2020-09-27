@@ -44,7 +44,7 @@ namespace Tpl.Examples.Tests.TimedBatchBlock
                     // Run handler against batch
                     _handler.Invoke(messages);
 
-                    // If handler succeeds, release threads, otherwise continue to hang thread (handled externally via timeout)
+                    // If handler succeeds, release threads, otherwise continue to hang task (handled externally via timeout)
                     foreach (var message in messages)
                     {
                         message.ReleaseThread();
@@ -64,8 +64,8 @@ namespace Tpl.Examples.Tests.TimedBatchBlock
         {
             ResetTimer();
 
-            // this thread wrap stuff was done to hold the thread open so that external processors (such as rebus) will be aware if it fails
-            // thread will be released upon successful completion in above action block, else after the timeout will exception
+            // this thread wrap stuff was done to hold the task open so that external processors (such as rebus) will be aware if it fails
+            // task will be completed upon successful completion in above action block, else after the timeout will exception
             var wrapper = new ThreadLockWrapper<T>(message, _threadTimeout);
             await _batchBlock.SendAsync(wrapper);
             var result = await wrapper.HoldThread();
@@ -75,6 +75,10 @@ namespace Tpl.Examples.Tests.TimedBatchBlock
             }
         }
 
+        /// <summary>
+        /// Set action to fire on array of T when batch is full or timeout has elapsed
+        /// </summary>
+        /// <param name="handler"></param>
         public void SetHandler(Action<ThreadLockWrapper<T>[]> handler) => _handler = handler;
 
         private void ResetTimer() => _timer.Change(_batchTimeout, Timeout.Infinite);
