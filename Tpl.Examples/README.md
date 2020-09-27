@@ -40,6 +40,22 @@ This block accumulates messages until it reaches the defined theshold and then s
 
 ### 7. TimedBatchBlock
 This is not an official data block type but something we derived to avoid messages getting stuck during low volume and to properly allow Rebus to handle exceptions that occur duing batch execution.
-1. Batch will be flushed after a (configured) no messages have been received and threshold is not met.  IE. Timeout is reset each time a new message arrives.
+1. Batch will be flushed if no messages have been received for a (configured) time and threshold is not met.  IE. Timeout is reset each time a new message arrives.
 1. Tasks will remain incomplete until batch is completed or timeout.  
-1. Designed to be used as a static or single ton w/in the application and to be populated via many different threads.  A single threaded execution will cause every message to wait the full delay before being sent.
+1. Designed to be used as a static or singleton w/in the application and to be populated via many different threads.  A single threaded execution will cause every message to wait the full delay before being sent.
+
+[Example](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/TimedBatchBlockExamples.cs#L34) : Fire several batches of records but allow the last batch to remain partially full and verify it is send after the timeout has expired.
+
+## Linking Blocks Together
+Link blocks togehter to form a pipline using LinkTo.  When executing a data flow w/in a class instance (blocks are not static/singleton), then you will want call Complete on the pipeline and wait for it to finish. This is made easier by passing LinkOptions.PropagateCompletion to true in your LinkTo statements.  That way you call Complete on your first block and it will propagate to the rest of the blocks.  You then await the last block to complete.  If you are using the pipeline as a singleton then you do not want to call Complete as that will stop the block/pipeline from receiving any more records.  Messages will start flowing through the pipeline as soon as you send them, you do not have to call Complete first.
+
+## End to End Example
+This example shows a few different ways that people typically send records to a service w/in a sync/import/etc application.  This example is based upon a real world cloud sync application that I worked on in which saving 100 records was only a few ms slower than saving a single record.  That can vary drastically depending on what all is involved in saving a record, but it is signicantly faster to save records in batch the vast majority of the time.  
+
+[Save 1 at a time](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/EndToEndExamples.cs#L34) : Read the records returned from the import service and calls the customer service 1 record at a time using only a single thread.  Due to this being so slow we only process 1/1000 of the record as the last 2 examples.
+
+[Save 1 at a time in parallel](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/EndToEndExamples.cs#L58) : This is the same as the above example but we use a Parallel.ForEach loop to process up to 10 save operations at a time.  Because Parallel.ForEach does not support async, we have to read the entire set of import data into memory at the beginning.  Due to being much slower, we only process 1/100 of the records as the last 2 examples.
+
+[Save batches of 100 in parallel](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/EndToEndExamples.cs#L89) : This is basically hand-rolled batching using a Parallel.ForEach loop.  Like the previous example, we must read the entire import data set into memory.  Performance is very good so we can process the entire 100k records.  For this example, performance is almost as fast as using TPL even w/out having any async support.  It definitely doesn't code as nice and is more error prone though. 
+
+[Save batches of 100 using TPL](https://github.com/bpallan/dotnet-playground/blob/master/Tpl.Examples/Tpl.Examples.Tests/EndToEndExamples.cs#L155) : Use TPL data flows to build a pipeline.  Batch -> Transform -> Action.  Both transform and action blocks are run with 10 degrees of parallelism.  This example has full async support so the entire import data set doesn't have to be read into memory at once.  For a larger import with slower I/O operations being performed, this would have likely excelled even more over the hand-rolled solution above.
