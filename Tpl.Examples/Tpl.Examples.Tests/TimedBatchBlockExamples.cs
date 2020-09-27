@@ -26,6 +26,10 @@ namespace Tpl.Examples.Tests
             PropagateCompletion = true
         };
 
+        /// <summary>
+        /// Send 95 records in batches of 10.  The last 5 will get held until the timeout has passed.
+        /// </summary>
+        /// <returns></returns>
         [TestMethod]
         public async Task TimedBatchBlock_Example()
         {
