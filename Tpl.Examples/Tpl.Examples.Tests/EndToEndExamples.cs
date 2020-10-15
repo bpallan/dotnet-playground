@@ -38,7 +38,7 @@ namespace Tpl.Examples.Tests
             var saveCount = 0;
 
             // this will load the entire list into memory
-            var importCustomers = bulkDataService.GetCustomersFromImport();
+            var importCustomers = bulkDataService.GetCustomersFromImportAsync();
 
             await foreach (var importCustomer in importCustomers)
             {
@@ -62,7 +62,7 @@ namespace Tpl.Examples.Tests
             var saveCount = 0;
 
             // this will load the entire list into memory
-            var importCustomers = await bulkDataService.GetCustomersFromImport().ToListAsync();
+            var importCustomers = await bulkDataService.GetCustomersFromImportAsync().ToListAsync();
 
             Parallel.ForEach(importCustomers,
                 new ParallelOptions()
@@ -95,7 +95,7 @@ namespace Tpl.Examples.Tests
             var saveCount = 0;
 
             // this will load the entire list into memory
-            var importCustomers = await bulkDataService.GetCustomersFromImport().ToListAsync();
+            var importCustomers = await bulkDataService.GetCustomersFromImportAsync().ToListAsync();
 
             Parallel.ForEach(importCustomers,
                 new ParallelOptions()
@@ -189,7 +189,7 @@ namespace Tpl.Examples.Tests
             transformBlock.LinkTo(actionBlock, linkOptions);
 
             // unlike parallel.foreach TPL supports async
-            await foreach (var importCustomer in bulkDataService.GetCustomersFromImport())
+            await foreach (var importCustomer in bulkDataService.GetCustomersFromImportAsync())
             {
                 await batchBlock.SendAsync(importCustomer);
             }

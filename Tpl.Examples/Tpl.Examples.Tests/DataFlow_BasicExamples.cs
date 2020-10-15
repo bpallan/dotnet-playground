@@ -16,7 +16,7 @@ namespace Tpl.Examples.Tests
 {
     // https://docs.microsoft.com/en-us/dotnet/standard/parallel-programming/dataflow-task-parallel-library
     [TestClass]
-    public class BasicExamples
+    public class DataFlow_BasicExamples
     {
         private static readonly DataflowBlockOptions DataOptions = new DataflowBlockOptions()
         {
@@ -43,12 +43,12 @@ namespace Tpl.Examples.Tests
         public async Task BufferBlock_PostRejectsMessageOnceFull()
         {
             var bufferBlock = new BufferBlock<ImportCustomer>(DataOptions); 
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 10), ExecutionOptions);
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer), ExecutionOptions);
             bufferBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var customer in bulkService.GetCustomersFromImport())
+            await foreach (var customer in bulkService.GetCustomersFromImportAsync())
             {
                 // this will fail once the block reaches capacity
                 bufferBlock.Post(customer);
@@ -71,13 +71,13 @@ namespace Tpl.Examples.Tests
         public async Task BufferBlock_PostWaitForBufferSpace()
         {
             var bufferBlock = new BufferBlock<ImportCustomer>(DataOptions);
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 10),
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer),
                 ExecutionOptions);
             bufferBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var customer in bulkService.GetCustomersFromImport())
+            await foreach (var customer in bulkService.GetCustomersFromImportAsync())
             {
                 // wait until block has capacity before sending more records
                 while (bufferBlock.Post(customer) == false)
@@ -102,13 +102,13 @@ namespace Tpl.Examples.Tests
         public async Task BufferBlock_SendAsyncWillWait()
         {
             var bufferBlock = new BufferBlock<ImportCustomer>(DataOptions);
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 10),
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer),
                 ExecutionOptions);
             bufferBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var customer in bulkService.GetCustomersFromImport())
+            await foreach (var customer in bulkService.GetCustomersFromImportAsync())
             {
                 // send async will return an incomplete task when block is full that we can wait on
                 await bufferBlock.SendAsync(customer);
@@ -131,14 +131,14 @@ namespace Tpl.Examples.Tests
         public async Task BroadcastBlock_Example()
         {
             var broadcastBlock = new BroadcastBlock<ImportCustomer>(null, new DataflowBlockOptions());
-            var actionBlock1 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 50));
-            var actionBlock2 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 2, 100));
+            var actionBlock1 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, "Action-1", 50), ExecutionOptions);
+            var actionBlock2 = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, "Action-2", 100), ExecutionOptions);
             broadcastBlock.LinkTo(actionBlock1, LinkOptions);
             broadcastBlock.LinkTo(actionBlock2, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var customer in bulkService.GetCustomersFromImport())
+            await foreach (var customer in bulkService.GetCustomersFromImportAsync())
             {
                 await broadcastBlock.SendAsync(customer);
             }
@@ -160,11 +160,11 @@ namespace Tpl.Examples.Tests
         [TestMethod]
         public async Task ActionBlock_Example()
         {
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1), ExecutionOptions);
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer), ExecutionOptions);
 
             var bulkService = new BulkCustomerDataService(10);
 
-            await foreach (var customer in bulkService.GetCustomersFromImport())
+            await foreach (var customer in bulkService.GetCustomersFromImportAsync())
             {
                 await actionBlock.SendAsync(customer);
             }
@@ -182,12 +182,12 @@ namespace Tpl.Examples.Tests
         public async Task TransformBlock_Example()
         {
             var transformBlock = new TransformBlock<ImportCustomer, Customer>(importCustomer => importCustomer.ToCustomer(), ExecutionOptions);
-            var actionBlock = new ActionBlock<Customer>(customer => PerformAction(customer, 1, 1));
+            var actionBlock = new ActionBlock<Customer>(customer => PerformAction(customer), ExecutionOptions);
             transformBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var importCustomer in bulkService.GetCustomersFromImport())
+            await foreach (var importCustomer in bulkService.GetCustomersFromImportAsync())
             {
                 await transformBlock.SendAsync(importCustomer);
             }
@@ -209,11 +209,11 @@ namespace Tpl.Examples.Tests
         public async Task TransformManyBlock_Example()
         {
             var transformManyBlock = new TransformManyBlock<string, ImportCustomer>(JsonConvert.DeserializeObject<List<ImportCustomer>>, ExecutionOptions);
-            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer, 1, 1));
+            var actionBlock = new ActionBlock<ImportCustomer>(importCustomer => PerformAction(importCustomer), ExecutionOptions);
             transformManyBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
-            var json = JsonConvert.SerializeObject(await bulkService.GetCustomersFromImport().ToListAsync());
+            var json = JsonConvert.SerializeObject(await bulkService.GetCustomersFromImportAsync().ToListAsync());
 
             transformManyBlock.Post(json);
 
@@ -234,12 +234,12 @@ namespace Tpl.Examples.Tests
         public async Task BatchBlock_Example()
         {
             var batchBlock = new BatchBlock<ImportCustomer>(10);
-            var actionBlock = new ActionBlock<ImportCustomer[]>(importCustomer => PerformAction(importCustomer, 1, 1));
+            var actionBlock = new ActionBlock<ImportCustomer[]>(importCustomer => PerformAction(importCustomer), ExecutionOptions);
             batchBlock.LinkTo(actionBlock, LinkOptions);
 
             var bulkService = new BulkCustomerDataService(100);
 
-            await foreach (var importCustomer in bulkService.GetCustomersFromImport())
+            await foreach (var importCustomer in bulkService.GetCustomersFromImportAsync())
             {
                 await batchBlock.SendAsync(importCustomer);
             }
@@ -253,12 +253,12 @@ namespace Tpl.Examples.Tests
 
         private static int _performActionCount = 0;
 
-        private async Task PerformAction<T>(T input, int actionId, int delayMs)
+        private async Task PerformAction<T>(T input, string actionId = null, int delayMs = 100)
         {
             Interlocked.Increment(ref _performActionCount);
 
             await Task.Delay(delayMs);
-            Console.WriteLine($"Action {actionId}: {JsonConvert.SerializeObject(input)}");
+            Console.WriteLine($@"{(actionId == null ? "" : $"Action {actionId}: ")}{JsonConvert.SerializeObject(input)}");
         }
 
         [TestInitialize]

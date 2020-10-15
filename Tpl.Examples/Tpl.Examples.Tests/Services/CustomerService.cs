@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Tpl.Examples.Tests.Models;
 
@@ -8,9 +9,12 @@ namespace Tpl.Examples.Tests.Services
 {
     public class CustomerService
     {
+        private int _savedCount = 0;
+        public int SavedCount => _savedCount;
         public async Task<Customer> SaveCustomer(Customer customer)
         {
             await Task.Delay(100);
+            Interlocked.Increment(ref _savedCount);
             return await Task.FromResult(CreateCustomer(customer));
         }
 
@@ -29,6 +33,8 @@ namespace Tpl.Examples.Tests.Services
             {
                 savedCustomers.Add(CreateCustomer(customer));
             }
+
+            Interlocked.Add(ref _savedCount, savedCustomers.Count);
 
             return savedCustomers;
         }

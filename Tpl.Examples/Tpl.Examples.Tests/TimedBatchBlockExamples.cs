@@ -40,7 +40,7 @@ namespace Tpl.Examples.Tests
             List<Task> tasks = new List<Task>();
             var bulkService = new BulkCustomerDataService(95);
 
-            await foreach (var importCustomer in bulkService.GetCustomersFromImport())
+            await foreach (var importCustomer in bulkService.GetCustomersFromImportAsync())
             {
                 // this is designed to be executed in many separate threads (using rebus typically)
                 // if you await here it will wait the full 10 seconds for each message

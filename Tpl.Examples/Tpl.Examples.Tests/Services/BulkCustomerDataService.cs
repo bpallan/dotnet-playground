@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Tpl.Examples.Tests.Models;
@@ -15,7 +16,7 @@ namespace Tpl.Examples.Tests.Services
             _customerList = new Lazy<IAsyncEnumerable<ImportCustomer>>(GetCustomerList(totalCustomerCount));
         }
 
-        public async IAsyncEnumerable<ImportCustomer> GetCustomersFromImport()
+        public async IAsyncEnumerable<ImportCustomer> GetCustomersFromImportAsync()
         {
             await foreach (var customer in _customerList.Value)
             {
