@@ -90,7 +90,6 @@ namespace Tpl.Examples.Tests
             bufferBlock.Complete();
             await actionBlock.Completion;
 
-            // not all actions complete because post rejected records
             Assert.AreEqual(100, _performActionCount, $"Action count is {_performActionCount}");
         }
 
@@ -118,7 +117,6 @@ namespace Tpl.Examples.Tests
             bufferBlock.Complete();
             await actionBlock.Completion;
 
-            // not all actions complete because post rejected records
             Assert.AreEqual(100, _performActionCount, $"Action count is {_performActionCount}");
         }
 
